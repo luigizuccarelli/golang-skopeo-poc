@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	"github.com/containers/common/pkg/retry"
 	"github.com/containers/image/manifest"
@@ -34,6 +35,7 @@ var (
 	version          string
 	path             string
 	action           string
+	removeSignatures string
 )
 
 func init() {
@@ -41,6 +43,7 @@ func init() {
 	flag.StringVar(&version, "v", "", "version : v0.0.1")
 	flag.StringVar(&path, "p", "", "path to copy to: oci")
 	flag.StringVar(&action, "a", "", "copy or push")
+	flag.StringVar(&removeSignatures, "r", "false", "remove signatures")
 }
 
 func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
@@ -63,11 +66,13 @@ func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
 }
 
 func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
-	if len(args) != 2 {
-		return errorShouldDisplayUsage{errors.New("Exactly two arguments expected")}
+	if len(args) != 3 {
+		return errorShouldDisplayUsage{errors.New("Exactly three arguments expected")}
 	}
 	opts.deprecatedTLSVerify.warnIfUsed([]string{"--src-tls-verify", "--dest-tls-verify"})
 	imageNames := args
+
+	opts.removeSignatures, _ = strconv.ParseBool(args[2])
 
 	if err := reexecIfNecessaryForImages(imageNames...); err != nil {
 		return err
@@ -313,9 +318,9 @@ func main() {
 	args := []string{}
 
 	if action == "copy" {
-		args = []string{image, path}
+		args = []string{image, path, removeSignatures}
 	} else if action == "push" {
-		args = []string{path, image}
+		args = []string{path, image, removeSignatures}
 	}
 
 	writer := bufio.NewWriter(os.Stdout)
